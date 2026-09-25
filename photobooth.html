@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blushbooth — Your Photobooth</title>
+<meta name="description" content="Take or upload photos, pick a layout, and download your own photo strip. Nothing is uploaded anywhere — it all happens in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff;
+    --paper:#fdf8fa;
+    --ink:#1c1720;
+    --ink-soft:#6d6270;
+    --pink:#ff5f96;
+    --pink-deep:#e0397a;
+    --pink-soft:#ffe3ee;
+    --lilac:#8c6bff;
+    --line:#ece4e8;
+    --grad: linear-gradient(135deg, var(--pink) 0%, var(--lilac) 100%);
+    --shadow: 0 20px 45px -20px rgba(28,23,32,0.25);
+    --radius: 22px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Manrope',system-ui,-apple-system,Segoe UI,sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.wordmark,.brand-tag{font-family:'Fraunces',Georgia,serif;}
+  button{font-family:inherit;}
+  :focus-visible{outline:3px solid var(--pink); outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+
+  .app{
+    display:grid;
+    grid-template-columns:260px 1fr;
+    min-height:100vh;
+  }
+  .rail{
+    background:var(--paper);
+    border-right:1px solid var(--line);
+    padding:36px 28px;
+    display:flex;
+    flex-direction:column;
+    gap:34px;
+  }
+  .wordmark{
+    font-size:26px;
+    font-weight:600;
+    font-style:italic;
+    letter-spacing:-0.01em;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .wordmark .dot{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--grad);
+    display:inline-block;
+  }
+  .brand-tag{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    line-height:1.5;
+    font-style:italic;
+  }
+  .steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;}
+  .steps li{display:flex;}
+  .step-btn{
+    all:unset;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    padding:11px 12px;
+    border-radius:14px;
+    cursor:pointer;
+    color:var(--ink-soft);
+    font-weight:600;
+    font-size:14.5px;
+  }
+  .step-btn .num{
+    width:26px;height:26px;border-radius:50%;
+    background:#fff;border:1.5px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12.5px;color:var(--ink-soft);flex-shrink:0;
+  }
+  .step-btn[disabled]{cursor:not-allowed; opacity:.55;}
+  .step-btn.active{color:var(--ink); background:#fff; box-shadow:var(--shadow);}
+  .step-btn.active .num{background:var(--grad); border-color:transparent; color:#fff;}
+  .step-btn.done .num{background:var(--pink-soft); border-color:var(--pink-soft); color:var(--pink-deep);}
+
+  .privacy-note{
+    margin-top:auto;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    line-height:1.6;
+    padding-top:18px;
+    border-top:1px solid var(--line);
+  }
+  .privacy-note strong{color:var(--ink);}
+
+  .stage{
+    padding:52px 56px 80px;
+    display:flex;
+    justify-content:center;
+  }
+  .panel{
+    display:none;
+    width:100%;
+    max-width:840px;
+    animation:rise .35s ease;
+  }
+  .panel.active{display:block;}
+  @keyframes rise{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+  .panel h2{font-size:32px; margin:0 0 6px; font-weight:600;}
+  .panel .lede{color:var(--ink-soft); margin:0 0 32px; font-size:15.5px; max-width:52ch;}
+
+  /* Layout picker */
+  .layout-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+  }
+  .layout-card{
+    all:unset;
+    cursor:pointer;
+    border:1.5px solid var(--line);
+    border-radius:18px;
+    padding:18px 16px 16px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+    background:#fff;
+  }
+  .layout-card:hover{border-color:var(--pink);}
+  .layout-card.selected{border-color:var(--pink); background:var(--pink-soft); box-shadow:var(--shadow);}
+  .mini{width:64px; display:grid; gap:4px;}
+  .mini .cell{background:var(--ink); border-radius:3px; opacity:.85;}
+  .layout-card.selected .mini .cell{background:var(--pink-deep);}
+  .layout-name{font-weight:700; font-size:14.5px;}
+  .layout-sub{font-size:12px; color:var(--ink-soft);}
+
+  /* Buttons */
+  .btn{
+    border:none; border-radius:999px; cursor:pointer;
+    font-weight:700; font-size:15px; padding:13px 26px;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn-primary{background:var(--grad); color:#fff; box-shadow:0 12px 24px -10px rgba(224,57,122,.55);}
+  .btn-primary[disabled]{opacity:.4; cursor:not-allowed; box-shadow:none;}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border:1.5px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--ink);color:var(--ink);}
+  .btn-row{display:flex; gap:12px; margin-top:36px;}
+
+  /* Source toggle */
+  .segmented{
+    display:inline-flex; background:var(--paper); border-radius:999px; padding:4px;
+    border:1px solid var(--line); margin-bottom:26px;
+  }
+  .segmented button{
+    all:unset; cursor:pointer; padding:9px 20px; border-radius:999px;
+    font-weight:700; font-size:13.5px; color:var(--ink-soft);
+  }
+  .segmented button.active{background:#fff; color:var(--ink); box-shadow:0 4px 10px -4px rgba(0,0,0,.2);}
+
+  .capture-wrap{display:grid; grid-template-columns:1fr 260px; gap:28px;}
+  @media (max-width:760px){ .capture-wrap{grid-template-columns:1fr;} }
+
+  .video-card{
+    background:#100c14; border-radius:var(--radius); overflow:hidden; position:relative;
+    aspect-ratio:4/3; display:flex; align-items:center; justify-content:center;
+  }
+  .video-card video{width:100%; height:100%; object-fit:cover; transform:scaleX(-1);}
+  .video-msg{color:#fff; font-size:13.5px; text-align:center; padding:20px; line-height:1.6;}
+  .shutter-row{display:flex; align-items:center; justify-content:center; gap:18px; margin-top:18px;}
+  .shutter{
+    width:64px; height:64px; border-radius:50%; border:4px solid var(--pink);
+    background:#fff; cursor:pointer; position:relative;
+  }
+  .shutter:disabled{opacity:.35; cursor:not-allowed;}
+  .shutter::after{
+    content:""; position:absolute; inset:6px; border-radius:50%; background:var(--grad);
+  }
+  .shot-status{font-size:13.5px; color:var(--ink-soft); font-weight:600;}
+
+  .slot-list{display:flex; flex-direction:column; gap:10px;}
+  .slot-card{
+    position:relative; border-radius:14px; overflow:hidden; border:1.5px dashed var(--line);
+    aspect-ratio:4/3; background:var(--paper); display:flex; align-items:center; justify-content:center;
+    color:var(--ink-soft); font-size:12.5px; font-weight:700;
+  }
+  .slot-card.filled{border-style:solid; border-color:var(--line);}
+  .slot-card img{width:100%; height:100%; object-fit:cover;}
+  .slot-actions{
+    position:absolute; inset:0; background:rgba(20,15,22,.45); opacity:0;
+    display:flex; align-items:center; justify-content:center; gap:8px; transition:opacity .15s;
+  }
+  .slot-card.filled:hover .slot-actions, .slot-card.filled:focus-within .slot-actions{opacity:1;}
+  .icon-btn{
+    all:unset; width:32px; height:32px; border-radius:50%; background:#fff; color:var(--ink);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+
+  .upload-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px;}
+  .upload-slot{
+    aspect-ratio:4/3; border-radius:16px; border:1.5px dashed var(--line);
+    background:var(--paper); display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:8px; cursor:pointer; position:relative; overflow:hidden; color:var(--ink-soft);
+  }
+  .upload-slot.filled{border-style:solid;}
+  .upload-slot img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .upload-slot .label{font-size:12px; font-weight:700;}
+  .upload-slot.dragover{border-color:var(--pink); background:var(--pink-soft);}
+
+  /* Customize */
+  .customize-wrap{display:grid; grid-template-columns:1fr 300px; gap:32px; align-items:start;}
+  @media (max-width:800px){ .customize-wrap{grid-template-columns:1fr;} }
+  .preview-card{
+    background:var(--paper); border-radius:var(--radius); padding:22px;
+    display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow);
+  }
+  #previewCanvas{max-width:100%; max-height:70vh; border-radius:8px; display:block;}
+
+  .control-group{margin-bottom:26px;}
+  .control-group label.title{display:block; font-weight:700; font-size:13.5px; margin-bottom:10px;}
+  .swatches{display:flex; flex-wrap:wrap; gap:10px;}
+  .swatch{
+    width:38px; height:38px; border-radius:50%; cursor:pointer; border:2.5px solid transparent;
+    box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.08);
+  }
+  .swatch.selected{border-color:var(--pink);}
+  .field{
+    width:100%; padding:11px 14px; border-radius:12px; border:1.5px solid var(--line);
+    font-family:inherit; font-size:14px;
+  }
+  .toggle-row{display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; margin-bottom:10px;}
+  .toggle-row input{width:18px; height:18px; accent-color:var(--pink);}
+
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr;}
+    .rail{
+      flex-direction:row; align-items:center; overflow-x:auto; padding:18px 20px; gap:20px;
+    }
+    .steps{flex-direction:row;}
+    .privacy-note{display:none;}
+    .stage{padding:30px 20px 60px;}
+    .layout-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="wordmark"><span class="dot"></span>Blushbooth</div>
+    <p class="brand-tag">Snap a strip, pick a look, take it home.</p>
+    <ul class="steps">
+      <li><button class="step-btn active" data-step="0"><span class="num">1</span>Layout</button></li>
+      <li><button class="step-btn" data-step="1" disabled><span class="num">2</span>Photos</button></li>
+      <li><button class="step-btn" data-step="2" disabled><span class="num">3</span>Customize</button></li>
+    </ul>
+    <p class="privacy-note"><strong>Nothing leaves your device.</strong> There's no server or database here — photos are captured and composed right in your browser, and only saved to your computer when you choose to download.</p>
+  </aside>
+
+  <main class="stage">
+
+    <!-- STEP 0: LAYOUT -->
+    <section class="panel active" id="panel-0">
+      <h2>Pick a layout</h2>
+      <p class="lede">Choose how your photos will be arranged. You can change this later, but it'll clear any photos you've already added.</p>
+      <div class="layout-grid" id="layoutGrid"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="toStep1">Next: add photos</button>
+      </div>
+    </section>
+
+    <!-- STEP 1: CAPTURE -->
+    <section class="panel" id="panel-1">
+      <h2>Add your photos</h2>
+      <p class="lede">Use your camera or upload images from your device — whichever you like.</p>
+
+      <div class="segmented">
+        <button class="active" data-mode="camera">Use camera</button>
+        <button data-mode="upload">Upload images</button>
+      </div>
+
+      <div id="cameraMode" class="capture-wrap">
+        <div>
+          <div class="video-card">
+            <video id="video" autoplay muted playsinline></video>
+            <div class="video-msg" id="videoMsg" style="display:none;"></div>
+          </div>
+          <div class="shutter-row">
+            <button class="shutter" id="shutterBtn" title="Capture"></button>
+          </div>
+          <p class="shot-status" id="shotStatus" style="text-align:center; margin-top:10px;"></p>
+        </div>
+        <div class="slot-list" id="slotList"></div>
+      </div>
+
+      <div id="uploadMode" class="upload-grid" style="display:none;"></div>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back="0">Back</button>
+        <button class="btn btn-primary" id="toStep2" disabled>Next: customize</button>
+      </div>
+    </section>
+
+    <!-- STEP 2: CUSTOMIZE -->
+    <section class="panel" id="panel-2">
+      <h2>Customize &amp; download</h2>
+      <p class="lede">Pick a look, add a caption if you like, then save your photo.</p>
+      <div class="customize-wrap">
+        <div class="preview-card">
+          <canvas id="previewCanvas"></canvas>
+        </div>
+        <div>
+          <div class="control-group">
+            <label class="title">Theme</label>
+            <div class="swatches" id="themeSwatches"></div>
+          </div>
+          <div class="control-group">
+            <label class="title" for="captionInput">Caption (optional)</label>
+            <input class="field" id="captionInput" maxlength="40" placeholder="e.g. Best day ever">
+          </div>
+          <div class="control-group">
+            <div class="toggle-row"><input type="checkbox" id="dateToggle"><label for="dateToggle">Show today's date</label></div>
+            <div class="toggle-row"><input type="checkbox" id="roundToggle" checked><label for="roundToggle">Rounded photo corners</label></div>
+          </div>
+          <div class="btn-row" style="margin-top:6px;">
+            <button class="btn btn-primary" id="downloadBtn" style="width:100%; justify-content:center;">Download PNG</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-ghost" data-back="1">Back to photos</button>
+            <button class="btn btn-ghost" id="startOverBtn">Start over</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Layouts ---------- */
+  const LAYOUTS = [
+    { id:'strip3', name:'Classic Strip', sub:'3 photos', slots:3, cols:1, rows:3, aspect:4/3 },
+    { id:'strip4', name:'Big Strip',      sub:'4 photos', slots:4, cols:1, rows:4, aspect:4/3 },
+    { id:'grid2x2',name:'Grid',           sub:'4 photos', slots:4, cols:2, rows:2, aspect:4/3 },
+    { id:'duo',    name:'Duo',            sub:'2 photos', slots:2, cols:1, rows:2, aspect:4/3 },
+    { id:'solo',   name:'Solo Frame',     sub:'1 photo',  slots:1, cols:1, rows:1, aspect:3/4 },
+  ];
+
+  const THEMES = [
+    { id:'paperwhite', name:'Paperwhite', bg:'#ffffff', ink:'#1c1720', border:'#1c1720' },
+    { id:'noir',       name:'Noir',       bg:'#15121a', ink:'#ffffff', border:'#ffffff' },
+    { id:'blush',      name:'Blush',      bg:'#ffe2ee', ink:'#7a1f49', border:'#7a1f49' },
+    { id:'bloom',      name:'Bloom',      bg:['#ff7ab8','#8c6bff'], ink:'#ffffff', border:'#ffffff' },
+    { id:'sunset',     name:'Sunset',     bg:['#ff8fa3','#ffc66b'], ink:'#3a1220', border:'#3a1220' },
+  ];
+
+  /* ---------- State ---------- */
+  const state = {
+    step: 0,
+    layout: LAYOUTS[0],
+    slots: [],            // array of {img: HTMLImageElement} or null
+    sourceMode: 'camera',
+    theme: THEMES[3],
+    caption: '',
+    showDate: false,
+    rounded: true,
+    stream: null,
+  };
+  resetSlots();
+
+  function resetSlots(){
+    state.slots = new Array(state.layout.slots).fill(null);
+  }
+
+  /* ---------- Elements ---------- */
+  const el = (id)=>document.getElementById(id);
+  const layoutGrid = el('layoutGrid');
+  const themeSwatches = el('themeSwatches');
+  const slotList = el('slotList');
+  const uploadMode = el('uploadMode');
+  const cameraMode = el('cameraMode');
+  const video = el('video');
+  const videoMsg = el('videoMsg');
+  const shutterBtn = el('shutterBtn');
+  const shotStatus = el('shotStatus');
+  const fileInput = el('fileInput');
+  const toStep1 = el('toStep1');
+  const toStep2 = el('toStep2');
+  const previewCanvas = el('previewCanvas');
+  const captionInput = el('captionInput');
+  const dateToggle = el('dateToggle');
+  const roundToggle = el('roundToggle');
+  const downloadBtn = el('downloadBtn');
+  const startOverBtn = el('startOverBtn');
+
+  let uploadTargetIndex = null;
+
+  /* ---------- Step navigation ---------- */
+  function goToStep(n){
+    if(n===1) startCameraIfNeeded();
+    if(state.step===1 && n!==1) stopCamera();
+    state.step = n;
+    document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active', i===n));
+    document.querySelectorAll('.step-btn').forEach((b,i)=>{
+      b.classList.toggle('active', i===n);
+      b.classList.toggle('done', i<n);
+      b.disabled = i>n;
+    });
+    if(n===2) renderPreview();
+  }
+  document.querySelectorAll('.step-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ if(!btn.disabled) goToStep(Number(btn.dataset.step)); });
+  });
+  document.querySelectorAll('[data-back]').forEach(btn=>{
+    btn.addEventListener('click', ()=>goToStep(Number(btn.dataset.back)));
+  });
+
+  /* ---------- Step 0: layout ---------- */
+  function buildLayoutGrid(){
+    layoutGrid.innerHTML = '';
+    LAYOUTS.forEach(layout=>{
+      const card = document.createElement('button');
+      card.className = 'layout-card' + (layout.id===state.layout.id ? ' selected':'');
+      card.innerHTML = `
+        <div class="mini" style="grid-template-columns:repeat(${layout.cols},1fr); aspect-ratio:${layout.cols}/${layout.rows};">
+          ${Array.from({length:layout.slots}).map(()=>`<div class="cell" style="aspect-ratio:${layout.aspect};"></div>`).join('')}
+        </div>
+        <div class="layout-name">${layout.name}</div>
+        <div class="layout-sub">${layout.sub}</div>
+      `;
+      card.addEventListener('click', ()=>{
+        if(layout.id===state.layout.id) return;
+        const hasPhotos = state.slots.some(s=>s);
+        if(hasPhotos && !confirm('Switching layouts will clear your current photos. Continue?')) return;
+        state.layout = layout;
+        resetSlots();
+        buildLayoutGrid();
+        buildSlotList();
+        buildUploadGrid();
+        toStep2.disabled = true;
+      });
+      layoutGrid.appendChild(card);
+    });
+  }
+  toStep1.addEventListener('click', ()=>goToStep(1));
+
+  /* ---------- Step 1: source toggle ---------- */
+  document.querySelectorAll('.segmented button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.segmented button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.sourceMode = btn.dataset.mode;
+      cameraMode.style.display = state.sourceMode==='camera' ? 'grid' : 'none';
+      uploadMode.style.display = state.sourceMode==='upload' ? 'grid' : 'none';
+      if(state.sourceMode==='camera') startCameraIfNeeded(); else stopCamera();
+    });
+  });
+
+  /* ---- Camera ---- */
+  async function startCameraIfNeeded(){
+    if(state.sourceMode!=='camera' || state.stream) return;
+    videoMsg.style.display='none';
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({ video:{ width:{ideal:1280}, height:{ideal:960} }, audio:false });
+      state.stream = stream;
+      video.srcObject = stream;
+    }catch(err){
+      videoMsg.style.display='flex';
+      videoMsg.textContent = 'Camera unavailable (permission denied, or this page needs to be loaded over HTTPS). Try Upload images instead.';
+    }
+  }
+  function stopCamera(){
+    if(state.stream){
+      state.stream.getTracks().forEach(t=>t.stop());
+      state.stream = null;
+      video.srcObject = null;
+    }
+  }
+  shutterBtn.addEventListener('click', ()=>{
+    const idx = state.slots.findIndex(s=>!s);
+    if(idx===-1) return;
+    if(!video.videoWidth){ return; }
+    const tmp = document.createElement('canvas');
+    tmp.width = video.videoWidth; tmp.height = video.videoHeight;
+    const tctx = tmp.getContext('2d');
+    tctx.translate(tmp.width,0); tctx.scale(-1,1); // mirror to match preview
+    tctx.drawImage(video,0,0,tmp.width,tmp.height);
+    const img = new Image();
+    img.onload = ()=>{
+      state.slots[idx] = { img };
+      buildSlotList();
+      updateNextEnabled();
+    };
+    img.src = tmp.toDataURL('image/png');
+  });
+
+  function buildSlotList(){
+    slotList.innerHTML = '';
+    const filled = state.slots.filter(Boolean).length;
+    shotStatus.textContent = filled < state.slots.length
+      ? `Photo ${filled+1} of ${state.slots.length}`
+      : 'All photos captured — nice!';
+    shutterBtn.disabled = filled >= state.slots.length;
+    state.slots.forEach((slot,i)=>{
+      const card = document.createElement('div');
+      card.className = 'slot-card' + (slot ? ' filled' : '');
+      if(slot){
+        card.innerHTML = `<img src="${slot.img.src}" alt="Photo ${i+1}">
+          <div class="slot-actions">
+            <button class="icon-btn" data-retake="${i}" title="Retake">↺</button>
+            <button class="icon-btn" data-remove="${i}" title="Remove">✕</button>
+          </div>`;
+      } else {
+        card.textContent = `Photo ${i+1}`;
+      }
+      slotList.appendChild(card);
+    });
+    slotList.querySelectorAll('[data-retake]').forEach(b=>b.addEventListener('click',()=>{
+      state.slots[Number(b.dataset.retake)] = null; buildSlotList(); updateNextEnabled();
+    }));
+    slotList.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{
+      state.slots[Number(b.dataset.remove)] = null; buildSlotList(); updateNextEnabled();
+    }));
+  }
+
+  /* ---- Upload ---- */
+  function buildUploadGrid(){
+    uploadMode.innerHTML = '';
+    state.slots.forEach((slot,i)=>{
+      const box = document.createElement('div');
+      box.className = 'upload-slot' + (slot ? ' filled':'');
+      box.innerHTML = slot
+        ? `<img src="${slot.img.src}" alt="Photo ${i+1}"><div class="slot-actions"><button class="icon-btn" data-uremove="${i}" title="Remove">✕</button></div>`
+        : `<span>＋</span><span class="label">Photo ${i+1}</span>`;
+      box.addEventListener('click', (e)=>{
+        if(e.target.closest('[data-uremove]')) return;
+        uploadTargetIndex = i;
+        fileInput.click();
+      });
+      box.addEventListener('dragover', e=>{ e.preventDefault(); box.classList.add('dragover'); });
+      box.addEventListener('dragleave', ()=>box.classList.remove('dragover'));
+      box.addEventListener('drop', e=>{
+        e.preventDefault(); box.classList.remove('dragover');
+        if(e.dataTransfer.files && e.dataTransfer.files[0]) loadFileToSlot(e.dataTransfer.files[0], i);
+      });
+      uploadMode.appendChild(box);
+    });
+    uploadMode.querySelectorAll('[data-uremove]').forEach(b=>b.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      state.slots[Number(b.dataset.uremove)] = null; buildUploadGrid(); updateNextEnabled();
+    }));
+  }
+  fileInput.addEventListener('change', ()=>{
+    const files = Array.from(fileInput.files || []);
+    if(!files.length) return;
+    if(uploadTargetIndex!==null){
+      loadFileToSlot(files[0], uploadTargetIndex);
+    } else {
+      let i=0;
+      for(const f of files){
+        const next = state.slots.findIndex((s,idx)=>!s && idx>=i);
+        if(next===-1) break;
+        loadFileToSlot(f, next);
+        i = next+1;
+      }
+    }
+    fileInput.value = '';
+    uploadTargetIndex = null;
+  });
+  function loadFileToSlot(file, index){
+    if(!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        state.slots[index] = { img };
+        buildUploadGrid();
+        updateNextEnabled();
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function updateNextEnabled(){
+    toStep2.disabled = !state.slots.every(Boolean);
+  }
+  toStep2.addEventListener('click', ()=>goToStep(2));
+
+  /* ---------- Step 2: customize ---------- */
+  function buildThemeSwatches(){
+    themeSwatches.innerHTML='';
+    THEMES.forEach(theme=>{
+      const b = document.createElement('button');
+      b.className = 'swatch' + (theme.id===state.theme.id ? ' selected':'');
+      b.title = theme.name;
+      b.style.background = Array.isArray(theme.bg)
+        ? `linear-gradient(135deg, ${theme.bg[0]}, ${theme.bg[1]})`
+        : theme.bg;
+      if(theme.id==='paperwhite') b.style.boxShadow = 'inset 0 0 0 1.5px #ddd';
+      b.addEventListener('click', ()=>{
+        state.theme = theme;
+        buildThemeSwatches();
+        renderPreview();
+      });
+      themeSwatches.appendChild(b);
+    });
+  }
+  captionInput.addEventListener('input', ()=>{ state.caption = captionInput.value; renderPreview(); });
+  dateToggle.addEventListener('change', ()=>{ state.showDate = dateToggle.checked; renderPreview(); });
+  roundToggle.addEventListener('change', ()=>{ state.rounded = roundToggle.checked; renderPreview(); });
+
+  /* ---------- Compositing ---------- */
+  function computeGeometry(layout){
+    const cellW = 640, gap = 28, pad = 48, headerH = 100, footerH = 90;
+    const cellH = cellW / layout.aspect;
+    const gridW = layout.cols*cellW + (layout.cols-1)*gap;
+    const gridH = layout.rows*cellH + (layout.rows-1)*gap;
+    const canvasW = gridW + pad*2;
+    const canvasH = pad*2 + headerH + gridH + footerH;
+    const rects = [];
+    for(let i=0;i<layout.slots;i++){
+      const row = Math.floor(i/layout.cols), col = i % layout.cols;
+      rects.push({
+        x: pad + col*(cellW+gap),
+        y: pad + headerH + row*(cellH+gap),
+        w: cellW, h: cellH,
+      });
+    }
+    return { canvasW, canvasH, rects, pad, headerH, footerH };
+  }
+
+  function drawImageCover(ctx, img, dx, dy, dw, dh){
+    const ir = img.width/img.height, dr = dw/dh;
+    let sx,sy,sw,sh;
+    if(ir > dr){ sh = img.height; sw = sh*dr; sx = (img.width-sw)/2; sy = 0; }
+    else { sw = img.width; sh = sw/dr; sx = 0; sy = (img.height-sh)/2; }
+    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+  }
+
+  function roundedRectPath(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  async function renderComposite(canvas){
+    await document.fonts.load('700 40px Fraunces');
+    await document.fonts.load('italic 500 28px Fraunces');
+    const layout = state.layout, theme = state.theme;
+    const geo = computeGeometry(layout);
+    canvas.width = geo.canvasW; canvas.height = geo.canvasH;
+    const ctx = canvas.getContext('2d');
+
+    // background
+    if(Array.isArray(theme.bg)){
+      const g = ctx.createLinearGradient(0,0,geo.canvasW,geo.canvasH);
+      g.addColorStop(0, theme.bg[0]); g.addColorStop(1, theme.bg[1]);
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = theme.bg;
+    }
+    ctx.fillRect(0,0,geo.canvasW,geo.canvasH);
+
+    // outer border
+    ctx.strokeStyle = theme.border;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(14,14,geo.canvasW-28,geo.canvasH-28);
+    ctx.globalAlpha = 1;
+
+    // header wordmark
+    ctx.fillStyle = theme.ink;
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = "italic 600 34px 'Fraunces', serif";
+    ctx.textAlign = 'left';
+    ctx.fillText('Blushbooth', geo.pad, geo.pad + 46);
+
+    if(state.showDate){
+      ctx.font = "600 15px 'Manrope', sans-serif";
+      ctx.textAlign = 'right';
+      const dateStr = new Date().toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+      ctx.fillText(dateStr, geo.canvasW - geo.pad, geo.pad + 40);
+    }
+
+    // photos
+    geo.rects.forEach((r,i)=>{
+      const slot = state.slots[i];
+      if(!slot) return;
+      ctx.save();
+      const radius = state.rounded ? 18 : 0;
+      roundedRectPath(ctx, r.x, r.y, r.w, r.h, radius);
+      ctx.clip();
+      drawImageCover(ctx, slot.img, r.x, r.y, r.w, r.h);
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = theme.ink;
+      ctx.globalAlpha = 0.15;
+      ctx.lineWidth = 2;
+      roundedRectPath(ctx, r.x, r.y, r.w, r.h, radius);
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // caption
+    if(state.caption.trim()){
+      ctx.fillStyle = theme.ink;
+      ctx.font = "italic 500 30px 'Fraunces', serif";
+      ctx.textAlign = 'center';
+      ctx.fillText(state.caption.trim(), geo.canvasW/2, geo.canvasH - geo.footerH/2 + 10);
+    }
+  }
+
+  function renderPreview(){ renderComposite(previewCanvas); }
+
+  downloadBtn.addEventListener('click', async ()=>{
+    await renderComposite(previewCanvas);
+    previewCanvas.toBlob((blob)=>{
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+      a.href = url;
+      a.download = `blushbooth-${state.layout.id}-${stamp}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  });
+
+  startOverBtn.addEventListener('click', ()=>{
+    if(!confirm('Start over? This clears your current photos.')) return;
+    resetSlots();
+    captionInput.value=''; state.caption='';
+    dateToggle.checked=false; state.showDate=false;
+    roundToggle.checked=true; state.rounded=true;
+    buildSlotList(); buildUploadGrid();
+    goToStep(0);
+  });
+
+  /* ---------- Init ---------- */
+  buildLayoutGrid();
+  buildThemeSwatches();
+  buildSlotList();
+  buildUploadGrid();
+
+  window.addEventListener('beforeunload', stopCamera);
+})();
+</script>
+</body>
+</html>
