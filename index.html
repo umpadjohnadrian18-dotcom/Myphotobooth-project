@@ -425,6 +425,7 @@
     height:100%;
     object-fit:cover;
     transform:scaleX(-1);
+    transition:filter .15s ease;
   }
 
   .video-msg{
@@ -433,6 +434,90 @@
     text-align:center;
     padding:20px;
     line-height:1.6;
+  }
+
+  .countdown-overlay{
+    position:absolute;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(16,12,20,.28);
+    pointer-events:none;
+  }
+
+  .countdown-overlay.active{
+    display:flex;
+  }
+
+  .countdown-num{
+    font-family:'Fraunces',Georgia,serif;
+    font-weight:700;
+    font-size:110px;
+    color:#fff;
+    text-shadow:0 8px 30px rgba(0,0,0,.4);
+    animation:countPulse .7s ease;
+  }
+
+  @keyframes countPulse{
+    from{
+      opacity:0;
+      transform:scale(1.3);
+    }
+
+    to{
+      opacity:1;
+      transform:scale(1);
+    }
+  }
+
+  .live-controls{
+    margin-top:16px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+
+  .live-control-block .title-mini{
+    display:block;
+    font-size:11.5px;
+    font-weight:700;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+  }
+
+  .filmstrip-row{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding-bottom:2px;
+  }
+
+  .filmstrip-chip{
+    all:unset;
+    cursor:pointer;
+    flex-shrink:0;
+    padding:7px 13px;
+    border-radius:999px;
+    border:1.5px solid var(--line);
+    font-size:12px;
+    font-weight:700;
+    color:var(--ink-soft);
+    background:#fff;
+    transition:.2s ease;
+  }
+
+  .filmstrip-chip:hover{
+    border-color:var(--pink);
+    color:var(--ink);
+  }
+
+  .filmstrip-chip.selected{
+    border-color:var(--pink);
+    background:var(--pink-soft);
+    color:var(--pink-deep);
   }
 
   .shutter-row{
@@ -922,6 +1007,10 @@
       border-radius:18px;
     }
 
+    .countdown-num{
+      font-size:80px;
+    }
+
     .shutter{
       width:58px;
       height:58px;
@@ -1150,6 +1239,24 @@
               class="video-msg"
               id="videoMsg"
               style="display:none;">
+            </div>
+
+            <div class="countdown-overlay" id="countdownOverlay">
+              <span class="countdown-num" id="countdownNum"></span>
+            </div>
+
+          </div>
+
+          <div class="live-controls">
+
+            <div class="live-control-block">
+              <span class="title-mini">Live filter</span>
+              <div class="filmstrip-row" id="cameraFilterChips"></div>
+            </div>
+
+            <div class="live-control-block">
+              <span class="title-mini">Timer</span>
+              <div class="filmstrip-row" id="timerChips"></div>
             </div>
 
           </div>
@@ -1538,6 +1645,35 @@
 
 
   /* =========================================
+     TIMER OPTIONS
+  ========================================= */
+
+  const TIMER_OPTIONS = [
+
+    {
+      seconds:0,
+      name:'Off'
+    },
+
+    {
+      seconds:3,
+      name:'3s'
+    },
+
+    {
+      seconds:5,
+      name:'5s'
+    },
+
+    {
+      seconds:10,
+      name:'10s'
+    }
+
+  ];
+
+
+  /* =========================================
      STATE
   ========================================= */
 
@@ -1561,9 +1697,14 @@
 
     rounded:true,
 
-    stream:null
+    stream:null,
+
+    timerSeconds:0
 
   };
+
+
+  let countdownTimer = null;
 
 
   resetSlots();
@@ -1592,6 +1733,12 @@
 
   const filterSwatches =
     el('filterSwatches');
+
+  const cameraFilterChips =
+    el('cameraFilterChips');
+
+  const timerChips =
+    el('timerChips');
 
   const slotList =
     el('slotList');
@@ -1641,6 +1788,12 @@
   const startOverBtn =
     el('startOverBtn');
 
+  const countdownOverlay =
+    el('countdownOverlay');
+
+  const countdownNum =
+    el('countdownNum');
+
 
   let uploadTargetIndex = null;
 
@@ -1660,6 +1813,8 @@
     if(state.step === 1 && n !== 1){
 
       stopCamera();
+
+      cancelCountdown();
 
     }
 
@@ -1915,6 +2070,8 @@
 
             stopCamera();
 
+            cancelCountdown();
+
           }
 
         }
@@ -1984,6 +2141,8 @@
 
       video.srcObject = stream;
 
+      applyLiveFilter();
+
     }catch(err){
 
       videoMsg.style.display = 'flex';
@@ -2014,90 +2173,318 @@
 
 
   /* =========================================
+     LIVE FILTER (applied to the video feed
+     itself, so it previews like Instagram /
+     Snapchat before you even take the shot)
+  ========================================= */
+
+  function applyLiveFilter(){
+
+    video.style.filter =
+      state.filter.css;
+
+  }
+
+
+  function buildCameraFilterChips(){
+
+    cameraFilterChips.innerHTML = '';
+
+
+    FILTERS.forEach(
+      filter=>{
+
+        const b =
+          document.createElement('button');
+
+
+        b.className =
+          'filmstrip-chip' +
+          (
+            filter.id === state.filter.id
+            ? ' selected'
+            : ''
+          );
+
+
+        b.textContent =
+          filter.name;
+
+
+        b.addEventListener(
+          'click',
+          ()=>{
+
+            state.filter =
+              filter;
+
+
+            buildCameraFilterChips();
+
+            buildFilterSwatches();
+
+            applyLiveFilter();
+
+            renderPreview();
+
+          }
+        );
+
+
+        cameraFilterChips.appendChild(b);
+
+      }
+    );
+
+  }
+
+
+  /* =========================================
+     TIMER
+  ========================================= */
+
+  function buildTimerChips(){
+
+    timerChips.innerHTML = '';
+
+
+    TIMER_OPTIONS.forEach(
+      opt=>{
+
+        const b =
+          document.createElement('button');
+
+
+        b.className =
+          'filmstrip-chip' +
+          (
+            opt.seconds === state.timerSeconds
+            ? ' selected'
+            : ''
+          );
+
+
+        b.textContent =
+          opt.name;
+
+
+        b.addEventListener(
+          'click',
+          ()=>{
+
+            state.timerSeconds =
+              opt.seconds;
+
+            buildTimerChips();
+
+          }
+        );
+
+
+        timerChips.appendChild(b);
+
+      }
+    );
+
+  }
+
+
+  function cancelCountdown(){
+
+    if(countdownTimer){
+
+      clearInterval(countdownTimer);
+
+      countdownTimer = null;
+
+    }
+
+
+    countdownOverlay.classList.remove(
+      'active'
+    );
+
+
+    shutterBtn.disabled =
+      state.slots.every(Boolean);
+
+  }
+
+
+  function startCountdownThenCapture(){
+
+    let remaining =
+      state.timerSeconds;
+
+
+    shutterBtn.disabled = true;
+
+
+    countdownOverlay.classList.add(
+      'active'
+    );
+
+
+    countdownNum.textContent =
+      String(remaining);
+
+
+    countdownTimer = setInterval(
+      ()=>{
+
+        remaining -= 1;
+
+
+        if(remaining <= 0){
+
+          clearInterval(countdownTimer);
+
+          countdownTimer = null;
+
+          countdownOverlay.classList.remove(
+            'active'
+          );
+
+          capturePhoto();
+
+          return;
+
+        }
+
+
+        countdownNum.textContent =
+          String(remaining);
+
+
+        countdownNum.style.animation =
+          'none';
+
+
+        void countdownNum.offsetWidth;
+
+
+        countdownNum.style.animation =
+          '';
+
+      },
+      1000
+    );
+
+  }
+
+
+  /* =========================================
      CAPTURE PHOTO
   ========================================= */
+
+  function capturePhoto(){
+
+    const idx =
+      state.slots.findIndex(
+        s=>!s
+      );
+
+
+    if(idx === -1){
+
+      return;
+
+    }
+
+
+    if(!video.videoWidth){
+
+      return;
+
+    }
+
+
+    const tmp =
+      document.createElement('canvas');
+
+
+    tmp.width =
+      video.videoWidth;
+
+    tmp.height =
+      video.videoHeight;
+
+
+    const tctx =
+      tmp.getContext('2d');
+
+
+    tctx.filter =
+      state.filter.css;
+
+
+    tctx.translate(
+      tmp.width,
+      0
+    );
+
+    tctx.scale(-1,1);
+
+
+    tctx.drawImage(
+      video,
+      0,
+      0,
+      tmp.width,
+      tmp.height
+    );
+
+
+    const img =
+      new Image();
+
+
+    img.onload = ()=>{
+
+      state.slots[idx] = {
+        img,
+        capturedWithFilter:true
+      };
+
+
+      buildSlotList();
+
+      buildUploadGrid();
+
+      updateNextEnabled();
+
+    };
+
+
+    img.src =
+      tmp.toDataURL(
+        'image/jpeg',
+        0.95
+      );
+
+  }
+
 
   shutterBtn.addEventListener(
     'click',
     ()=>{
 
-      const idx =
-        state.slots.findIndex(
-          s=>!s
-        );
-
-
-      if(idx === -1){
+      if(shutterBtn.disabled){
 
         return;
 
       }
 
 
-      if(!video.videoWidth){
+      if(state.timerSeconds > 0){
 
-        return;
+        startCountdownThenCapture();
+
+      }else{
+
+        capturePhoto();
 
       }
-
-
-      const tmp =
-        document.createElement('canvas');
-
-
-      tmp.width =
-        video.videoWidth;
-
-      tmp.height =
-        video.videoHeight;
-
-
-      const tctx =
-        tmp.getContext('2d');
-
-
-      tctx.translate(
-        tmp.width,
-        0
-      );
-
-      tctx.scale(-1,1);
-
-
-      tctx.drawImage(
-        video,
-        0,
-        0,
-        tmp.width,
-        tmp.height
-      );
-
-
-      const img =
-        new Image();
-
-
-      img.onload = ()=>{
-
-        state.slots[idx] = {
-          img
-        };
-
-
-        buildSlotList();
-
-        buildUploadGrid();
-
-        updateNextEnabled();
-
-      };
-
-
-      img.src =
-        tmp.toDataURL(
-          'image/jpeg',
-          0.95
-        );
 
     }
   );
@@ -2547,6 +2934,14 @@
     toStep2.disabled =
       !state.slots.every(Boolean);
 
+
+    if(!countdownTimer){
+
+      shutterBtn.disabled =
+        state.slots.every(Boolean);
+
+    }
+
   }
 
 
@@ -2673,6 +3068,10 @@
               filter;
 
             buildFilterSwatches();
+
+            buildCameraFilterChips();
+
+            applyLiveFilter();
 
             renderPreview();
 
@@ -3083,7 +3482,7 @@
 
 
     ctx.fillText(
-      'Blushbooth',
+      'PhotoPad',
       geo.pad,
       geo.pad + 46
     );
@@ -3161,7 +3560,9 @@
 
 
         ctx.filter =
-          state.filter.css;
+          slot.capturedWithFilter
+          ? 'none'
+          : state.filter.css;
 
 
         drawImageCover(
@@ -3329,7 +3730,7 @@
 
 
           a.download =
-            `blushbooth-${state.layout.id}-${stamp}.jpg`;
+            `photopad-${state.layout.id}-${stamp}.jpg`;
 
 
           document.body.appendChild(
@@ -3403,7 +3804,19 @@
         FILTERS[0];
 
 
+      state.timerSeconds = 0;
+
+
+      cancelCountdown();
+
+
       buildFilterSwatches();
+
+      buildCameraFilterChips();
+
+      buildTimerChips();
+
+      applyLiveFilter();
 
       buildSlotList();
 
@@ -3426,6 +3839,10 @@
   buildThemeSwatches();
 
   buildFilterSwatches();
+
+  buildCameraFilterChips();
+
+  buildTimerChips();
 
   buildSlotList();
 
