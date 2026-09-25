@@ -1,10 +1,9 @@
-```html
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Blushbooth — Your Photobooth</title>
+<title>PhotoPad — My Own Photobooth</title>
 
 <meta name="description" content="Take or upload photos, pick a layout, and download your own photo strip. Nothing is uploaded anywhere — it all happens in your browser.">
 
@@ -650,6 +649,36 @@
     border-color:var(--pink);
   }
 
+  .chip-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  .chip{
+    all:unset;
+    cursor:pointer;
+    padding:8px 14px;
+    border-radius:999px;
+    border:1.5px solid var(--line);
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--ink-soft);
+    background:#fff;
+    transition:.2s ease;
+  }
+
+  .chip:hover{
+    border-color:var(--pink);
+    color:var(--ink);
+  }
+
+  .chip.selected{
+    border-color:var(--pink);
+    background:var(--pink-soft);
+    color:var(--pink-deep);
+  }
+
   .field{
     width:100%;
     padding:11px 14px;
@@ -1233,6 +1262,20 @@
 
           <div class="control-group">
 
+            <label class="title">
+              Filter
+            </label>
+
+            <div
+              class="chip-row"
+              id="filterSwatches">
+            </div>
+
+          </div>
+
+
+          <div class="control-group">
+
             <label
               class="title"
               for="captionInput">
@@ -1444,6 +1487,57 @@
 
 
   /* =========================================
+     FILTERS
+  ========================================= */
+
+  const FILTERS = [
+
+    {
+      id:'none',
+      name:'None',
+      css:'none'
+    },
+
+    {
+      id:'bw',
+      name:'B&W',
+      css:'grayscale(1) contrast(1.08)'
+    },
+
+    {
+      id:'sepia',
+      name:'Sepia',
+      css:'sepia(0.65) contrast(1.05) saturate(1.15)'
+    },
+
+    {
+      id:'vintage',
+      name:'Vintage',
+      css:'sepia(0.35) saturate(1.35) contrast(0.92) brightness(1.06)'
+    },
+
+    {
+      id:'cool',
+      name:'Cool',
+      css:'saturate(1.1) hue-rotate(-12deg) brightness(1.03)'
+    },
+
+    {
+      id:'warm',
+      name:'Warm',
+      css:'saturate(1.25) hue-rotate(8deg) brightness(1.05)'
+    },
+
+    {
+      id:'dreamy',
+      name:'Dreamy',
+      css:'contrast(0.9) brightness(1.12) saturate(1.15) blur(0.4px)'
+    }
+
+  ];
+
+
+  /* =========================================
      STATE
   ========================================= */
 
@@ -1458,6 +1552,8 @@
     sourceMode:'camera',
 
     theme:THEMES[3],
+
+    filter:FILTERS[0],
 
     caption:'',
 
@@ -1493,6 +1589,9 @@
 
   const themeSwatches =
     el('themeSwatches');
+
+  const filterSwatches =
+    el('filterSwatches');
 
   const slotList =
     el('slotList');
@@ -2537,6 +2636,58 @@
   }
 
 
+  /* =========================================
+     FILTERS
+  ========================================= */
+
+  function buildFilterSwatches(){
+
+    filterSwatches.innerHTML = '';
+
+
+    FILTERS.forEach(
+      filter=>{
+
+        const b =
+          document.createElement('button');
+
+
+        b.className =
+          'chip' +
+          (
+            filter.id === state.filter.id
+            ? ' selected'
+            : ''
+          );
+
+
+        b.textContent =
+          filter.name;
+
+
+        b.addEventListener(
+          'click',
+          ()=>{
+
+            state.filter =
+              filter;
+
+            buildFilterSwatches();
+
+            renderPreview();
+
+          }
+        );
+
+
+        filterSwatches.appendChild(b);
+
+      }
+    );
+
+  }
+
+
   captionInput.addEventListener(
     'input',
     ()=>{
@@ -3009,6 +3160,10 @@
         ctx.clip();
 
 
+        ctx.filter =
+          state.filter.css;
+
+
         drawImageCover(
           ctx,
           slot.img,
@@ -3082,6 +3237,31 @@
       );
 
     }
+
+
+    /* Copyright watermark */
+
+    ctx.save();
+
+    ctx.fillStyle =
+      theme.ink;
+
+    ctx.globalAlpha =
+      0.65;
+
+    ctx.font =
+      "600 12px 'Manrope', sans-serif";
+
+    ctx.textAlign =
+      'center';
+
+    ctx.fillText(
+      '© 2026 Adrian Umpad — All rights reserved',
+      geo.canvasW / 2,
+      geo.canvasH - 26
+    );
+
+    ctx.restore();
 
   }
 
@@ -3219,6 +3399,12 @@
         true;
 
 
+      state.filter =
+        FILTERS[0];
+
+
+      buildFilterSwatches();
+
       buildSlotList();
 
       buildUploadGrid();
@@ -3239,6 +3425,8 @@
 
   buildThemeSwatches();
 
+  buildFilterSwatches();
+
   buildSlotList();
 
   buildUploadGrid();
@@ -3254,4 +3442,3 @@
 
 </body>
 </html>
-```
