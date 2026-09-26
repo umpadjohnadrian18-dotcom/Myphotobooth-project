@@ -2239,6 +2239,20 @@
 
 
     if(
+      window.isSecureContext === false
+    ){
+
+      videoMsg.style.display = 'flex';
+
+      videoMsg.textContent =
+        'Camera access needs a secure connection. Opening this file directly (file://) blocks it in most browsers — use the hosted link, run it from a local web server, or use Upload images instead.';
+
+      return;
+
+    }
+
+
+    if(
       !navigator.mediaDevices ||
       !navigator.mediaDevices.getUserMedia
     ){
@@ -2291,7 +2305,13 @@
       videoMsg.style.display = 'flex';
 
       videoMsg.textContent =
-        'Camera unavailable. Please allow camera access or use Upload images instead.';
+        err && err.name === 'NotAllowedError'
+        ? 'Camera access was blocked. Allow camera permission for this page in your browser settings, then reload.'
+        : err && err.name === 'NotFoundError'
+        ? 'No camera was found on this device. Try Upload images instead.'
+        : err && err.name === 'NotReadableError'
+        ? 'Your camera is already in use by another app or tab. Close it and try again.'
+        : 'Camera unavailable. Please allow camera access or use Upload images instead.';
 
     }
 
